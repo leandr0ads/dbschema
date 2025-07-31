@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Table Management</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .locked-field {
+            background-color: #f8f9fa;
+            cursor: not-allowed;
+        }
+        .remove-column {
+            color: #dc3545;
+            cursor: pointer;
+            font-size: 1.2rem;
+        }
+        .remove-column:hover {
+            color: #a71d2a;
+        }
+    </style>
+</head>
+<body>
+<div class="container mt-5">
+    <h1>Create New Table</h1>
+    <form th:action="@{/tables/create}" th:object="${tableDefinition}" method="post">
+        <div class="mb-3">
+            <label for="tableName" class="form-label">Table name</label>
+            <input type="text" class="form-control" id="tableName" th:field="*{tableName}" required>
+        </div>
+
+        <h3>Columns</h3>
+        <div id="columns-container">
+            <div class="column-form mb-3 border p-3 position-relative">
+                <button type="button" class="btn btn-sm btn-danger position-absolute top-0 end-0 m-2 remove-column-btn"
+                        onclick="removeColumn(this)" disabled>
+                    <i class="fas fa-trash"></i>
+                </button>
+                <div class="row">
+                    <div class="col-md-3">
+                        <label class="form-label">Column name</label>
+                        <input type="text" class="form-control" th:field="*{columns[0].name}" required>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Type</label>
+                        <select class="form-select column-type" th:field="*{columns[0].type}" onchange="handleTypeChange(this)">
+                            <option value="VARCHAR">VARCHAR</option>
+                            <option value="CHAR">CHAR</option>
+                            <option value="INT">INT</option>
+                            <option value="DATETIME">DATETIME</option>
+                            <option value="DECIMAL">DECIMAL</option>
+                            <option value="BOOLEAN">BOOLEAN</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Length</label>
+                        <input type="number" class="form-control column-length" th:field="*{columns[0].length}">
+                    </div>
+                    <div class="col-md-1 form-check">
+                        <input type="checkbox" class="form-check-input" th:field="*{columns[0].primaryKey}">
+                        <label class="form-check-label">PK</label>
+                    </div>
+                    <div class="col-md-1 form-check">
+                        <input type="checkbox" class="form-check-input column-autoinc" th:field="*{columns[0].autoIncrement}">
+                        <label class="form-check-label">AI</label>
+                    </div>
+                    <div class="col-md-2 form-check">
+                        <input type="checkbox" class="form-check-input column-nullable" th:field="*{columns[0].nullable}" checked>
+                        <label class="form-check-label">Nullable</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <button type="button" class="btn btn-secondary" onclick="addColumn()">
+            <i class="fas fa-plus"></i> Add Column
+        </button>
+        <button type="submit" class="btn btn-primary">
+            <i class="fas fa-save"></i> Create Table
+        </button>
+    </form>
+</div>
+
+<script>
+    let columnCount = 1;
+
+    function addColumn() {
+        columnCount++;
+        const container = document.getElementById('columns-container');
+        const newColumn = document.createElement('div');
+        newColumn.className = 'column-form mb-3 border p-3 position-relative';
+        newColumn.innerHTML = `
+            <button type="button" class="btn btn-sm btn-danger position-absolute top-0 end-0 m-2 remove-column-btn"
+                    onclick="removeColumn(this)">
+                <i class="fas fa-trash"></i>
+            </button>
+            <div class="row">
+                <div class="col-md-3">
+                    <label class="form-label">Column Name</label>
+                    <input type="text" class="form-control" name="columns[${columnCount-1}].name" required>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Type</label>
+                    <select class="form-select column-type" name="columns[${columnCount-1}].type" onchange="handleTypeChange(this)">
+                        <option value="VARCHAR">VARCHAR</option>
+                        <option value="CHAR">CHAR</option>
+                        <option value="INT">INT</option>
+                        <option value="DATETIME">DATETIME</option>
+                        <option value="DECIMAL">DECIMAL</option>
+                        <option value="BOOLEAN">BOOLEAN</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Length</label>
+                    <input type="number" class="form-control column-length" name="columns[${columnCount-1}].length">
+                </div>
+                <div class="col-md-1 form-check">
+                    <input type="checkbox" class="form-check-input" name="columns[${columnCount-1}].primaryKey">
+                    <label class="form-check-label">PK</label>
+                </div>
+                <div class="col-md-1 form-check">
+                    <input type="checkbox" class="form-check-input column-autoinc" name="columns[${columnCount-1}].autoIncrement">
+                    <label class="form-check-label">AI</label>
+                </div>
+                <div class="col-md-2 form-check">
+                    <input type="checkbox" class="form-check-input column-nullable" name="columns[${columnCount-1}].nullable" checked>
+                    <label class="form-check-label">Nullable</label>
+                </div>
+            </div>
+        `;
+        container.appendChild(newColumn);
+        // Aplica as regras para a nova coluna
+        const typeSelect = newColumn.querySelector('.column-type');
+        handleTypeChange(typeSelect);
+    }
+
+    function removeColumn(button) {
+        const columnDiv = button.closest('.column-form');
+        if (document.querySelectorAll('.column-form').length > 1) {
+            columnDiv.remove();
+            // Atualiza os índices dos campos restantes
+            updateColumnIndexes();
+        }
+    }
+
+    function updateColumnIndexes() {
+        const columns = document.querySelectorAll('.column-form');
+        columns.forEach((column, index) => {
+            // Atualiza os names dos inputs
+            column.querySelectorAll('input, select').forEach(input => {
+                const name = input.getAttribute('name');
+                if (name && name.includes('columns[')) {
+                    input.setAttribute('name', name.replace(/columns\[\d+\]/, `columns[${index}]`));
+                }
+            });
+
+            // Habilita/desabilita o botão de remoção
+            const removeBtn = column.querySelector('.remove-column-btn');
+            removeBtn.disabled = columns.length <= 1;
+        });
+    }
+
+    function handleTypeChange(selectElement) {
+        // ... (mantenha a mesma implementação anterior)
+    }
+
+    // Aplica as regras para a coluna inicial
+    document.addEventListener('DOMContentLoaded', function() {
+        const initialTypeSelect = document.querySelector('.column-type');
+        if (initialTypeSelect) {
+            handleTypeChange(initialTypeSelect);
+        }
+    });
+</script>
+</body>
+</html>
